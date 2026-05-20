@@ -33,7 +33,8 @@ GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0
 CLAUDE_URL = "https://api.anthropic.com/v1/messages"
 CLAUDE_MODEL = "claude-sonnet-4-20250514"  # Best balance speed/quality
 
-OUTPUT_DIR = Path("outputs")
+# Luôn tạo outputs/ ở root của repo, dù chạy từ đâu
+OUTPUT_DIR = Path(__file__).parent.parent / "outputs"
 OUTPUT_DIR.mkdir(exist_ok=True)
 
 
