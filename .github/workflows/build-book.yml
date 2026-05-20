@@ -3,8 +3,11 @@ name: 📚 Auto Book Builder
 on:
   schedule:
     - cron: '0 2 * * 1'   # Thứ Hai 9PM Houston time
-
   workflow_dispatch:       # Chạy thủ công từ Actions tab
+
+# Fix lỗi 403: cấp quyền write cho GITHUB_TOKEN
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -45,15 +48,22 @@ jobs:
           FROM_EMAIL:         ${{ secrets.FROM_EMAIL }}
           FROM_NAME:          ${{ secrets.FROM_NAME }}
         run: |
-          cd scripts
-          python build_book.py
+          # Fix lỗi path: chạy từ root, outputs/ sẽ tạo ở đúng chỗ
+          python scripts/build_book.py
 
-      - name: 📤 Upload all outputs
+      - name: 📋 List output files (debug)
+        run: |
+          echo "=== Files in outputs/ ==="
+          ls -la outputs/ || echo "outputs/ folder not found"
+
+      - name: 📤 Upload outputs as artifact
         uses: actions/upload-artifact@v4
         with:
           name: books-build-${{ github.run_number }}
           path: outputs/
           retention-days: 30
+        # Không fail nếu outputs rỗng
+        continue-on-error: true
 
       - name: 🏷️ Create GitHub Release
         uses: softprops/action-gh-release@v2
@@ -63,9 +73,12 @@ jobs:
           body: |
             Auto-generated books from YouTube pipeline.
             Download the files below ↓
+          # Path đúng từ root của repo
           files: |
             outputs/*.docx
             outputs/*.jpg
             outputs/*.txt
+          # Không fail nếu không có files
+          fail_on_unmatched_files: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
