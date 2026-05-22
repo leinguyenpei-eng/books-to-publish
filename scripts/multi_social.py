@@ -10,7 +10,7 @@ from datetime import datetime
 
 GEMINI_KEY = os.environ.get("GEMINI_API_KEY", "")
 CLAUDE_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
-OUTPUT_DIR = Path(__file__).parent.parent / "outputs"
+OUTPUT_DIR = Path("outputs")
 
 
 def log(msg):
