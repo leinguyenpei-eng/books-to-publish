@@ -1,16 +1,40 @@
-title: "Your Book Title Here"
-subtitle: "Your subtitle"
-author: "Your Name"
-niche: "Self-help"
+# ─────────────────────────────────────────────
+#  📚 BOOK CONFIG — điền thông tin sách của bạn
+# ─────────────────────────────────────────────
+
+title: "The Productivity Formula"
+subtitle: "How Top Performers Get More Done in Less Time"
+author: "Your Name Here"
+niche: "Self-help"          # Self-help / Business / Finance / Health / How-to
+
+# Ngôn ngữ output: en, vi, hoặc cả hai
 languages:
   - en
   - vi
+
+# Giá bán
 price_usd: 9.99
 price_vnd: 250000
-description: "Short description of your book."
 
+# Mô tả ngắn cho Gumroad/Payhip
+description: |
+  Discover the proven system used by the world's most productive people.
+  This book distills hundreds of hours of expert interviews into a simple,
+  actionable formula you can start using today.
+
+# ─────────────────────────────────────────────
+#  📺 YOUTUBE SOURCES — paste links vào đây
+#  Tối thiểu 5 links, tối đa 20 links
+#  Bất kỳ ngôn ngữ nào cũng được!
+# ─────────────────────────────────────────────
 youtube_urls:
-  - https://www.youtube.com/watch?v=REAL_LINK_1
-  - https://www.youtube.com/watch?v=REAL_LINK_2
-  - https://www.youtube.com/watch?v=REAL_LINK_3
-  # ... thêm đủ 10 links thật
+  - https://www.youtube.com/watch?v=EXAMPLE1
+  - https://www.youtube.com/watch?v=EXAMPLE2
+  - https://www.youtube.com/watch?v=EXAMPLE3
+  - https://www.youtube.com/watch?v=EXAMPLE4
+  - https://www.youtube.com/watch?v=EXAMPLE5
+  - https://www.youtube.com/watch?v=EXAMPLE6
+  - https://www.youtube.com/watch?v=EXAMPLE7
+  - https://www.youtube.com/watch?v=EXAMPLE8
+  - https://www.youtube.com/watch?v=EXAMPLE9
+  - https://www.youtube.com/watch?v=EXAMPLE10
