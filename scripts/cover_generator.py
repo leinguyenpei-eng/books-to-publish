@@ -18,8 +18,8 @@ except ImportError:
     PIL_OK = False
 
 GEMINI_KEY = os.environ.get("GEMINI_API_KEY", "")
-OUTPUT_DIR = Path(__file__).parent.parent / "outputs"
-OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+OUTPUT_DIR = Path("outputs")
+OUTPUT_DIR.mkdir(exist_ok=True)
 
 # KDP ebook cover: 2560×1600 px (1.6:1 ratio) — Amazon recommended
 COVER_W, COVER_H = 1600, 2560
