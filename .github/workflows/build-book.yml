@@ -2,17 +2,45 @@ name: 📚 Auto Book Builder
 
 on:
   schedule:
-    - cron: '0 2 * * 1'   # Thứ Hai 9PM Houston time
-  workflow_dispatch:       # Chạy thủ công từ Actions tab
+    - cron: '0 2 * * 1'   # Thứ Hai 9PM Houston — chạy tất cả sách
+  workflow_dispatch:
+    inputs:
+      book_file:
+        description: 'Tên file sách cụ thể (vd: 01-self-help-mindset) — để trống = chạy tất cả'
+        required: false
+        default: ''
 
-# Fix lỗi 403: cấp quyền write cho GITHUB_TOKEN
 permissions:
   contents: write
 
 jobs:
-  build:
+  # Bước 1: tìm danh sách sách cần build
+  list-books:
     runs-on: ubuntu-latest
-    timeout-minutes: 180
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: set-matrix
+        run: |
+          if [ -n "${{ github.event.inputs.book_file }}" ]; then
+            # Chạy 1 sách cụ thể
+            echo "matrix=[\"books/${{ github.event.inputs.book_file }}.yml\"]" >> $GITHUB_OUTPUT
+          else
+            # Chạy tất cả sách
+            FILES=$(ls books/*.yml | python3 -c "import sys,json; print(json.dumps(sys.stdin.read().split()))")
+            echo "matrix=$FILES" >> $GITHUB_OUTPUT
+          fi
+
+  # Bước 2: build từng sách song song
+  build-book:
+    needs: list-books
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      matrix:
+        book: ${{ fromJson(needs.list-books.outputs.matrix) }}
+      fail-fast: false   # Sách này fail không ảnh hưởng sách kia
 
     steps:
       - uses: actions/checkout@v4
@@ -31,7 +59,7 @@ jobs:
             pyyaml \
             pillow
 
-      - name: 📚 Build all books
+      - name: 📚 Build book — ${{ matrix.book }}
         env:
           GEMINI_API_KEY:     ${{ secrets.GEMINI_API_KEY }}
           ANTHROPIC_API_KEY:  ${{ secrets.ANTHROPIC_API_KEY }}
@@ -47,38 +75,31 @@ jobs:
           SENDGRID_API_KEY:   ${{ secrets.SENDGRID_API_KEY }}
           FROM_EMAIL:         ${{ secrets.FROM_EMAIL }}
           FROM_NAME:          ${{ secrets.FROM_NAME }}
+          BOOK_FILE:          ${{ matrix.book }}
         run: |
-          # Fix lỗi path: chạy từ root, outputs/ sẽ tạo ở đúng chỗ
-          python scripts/build_book.py
+          python scripts/build_single.py
 
-      - name: 📋 List output files (debug)
-        run: |
-          echo "=== Files in outputs/ ==="
-          ls -la outputs/ || echo "outputs/ folder not found"
+      - name: 📋 List outputs
+        run: ls -la outputs/ || echo "No outputs"
 
-      - name: 📤 Upload outputs as artifact
+      - name: 📤 Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: books-build-${{ github.run_number }}
+          name: book-${{ strategy.job-index }}-${{ github.run_number }}
           path: outputs/
           retention-days: 30
-        # Không fail nếu outputs rỗng
         continue-on-error: true
 
-      - name: 🏷️ Create GitHub Release
+      - name: 🏷️ Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: build-${{ github.run_number }}
-          name: "📚 Books — Build #${{ github.run_number }}"
-          body: |
-            Auto-generated books from YouTube pipeline.
-            Download the files below ↓
-          # Path đúng từ root của repo
+          tag_name: build-${{ github.run_number }}-${{ strategy.job-index }}
+          name: "📚 ${{ matrix.book }} — Build #${{ github.run_number }}"
+          body: "Auto-generated book. Download files below ↓"
           files: |
             outputs/*.docx
             outputs/*.jpg
             outputs/*.txt
-          # Không fail nếu không có files
           fail_on_unmatched_files: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
