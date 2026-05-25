@@ -2,11 +2,11 @@ name: 📚 Auto Book Builder
 
 on:
   schedule:
-    - cron: '0 2 * * 1'   # Thứ Hai 9PM Houston — chạy tất cả sách
+    - cron: '0 2 * * 1'
   workflow_dispatch:
     inputs:
       book_file:
-        description: 'Tên file sách cụ thể (vd: 01-self-help-mindset) — để trống = chạy tất cả'
+        description: 'Tên file sách (vd: 01-self-help-mindset) — để trống = chạy tất cả'
         required: false
         default: ''
 
@@ -14,25 +14,26 @@ permissions:
   contents: write
 
 jobs:
-  # Bước 1: tìm danh sách sách cần build
   list-books:
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
       - uses: actions/checkout@v4
+
       - id: set-matrix
         run: |
+          # Xóa example-book.yml nếu còn sót
+          rm -f books/example-book.yml
+
           if [ -n "${{ github.event.inputs.book_file }}" ]; then
-            # Chạy 1 sách cụ thể
             echo "matrix=[\"books/${{ github.event.inputs.book_file }}.yml\"]" >> $GITHUB_OUTPUT
           else
-            # Chạy tất cả sách
-            FILES=$(ls books/*.yml | python3 -c "import sys,json; print(json.dumps(sys.stdin.read().split()))")
+            FILES=$(ls books/*.yml 2>/dev/null | python3 -c "import sys,json; files=[f.strip() for f in sys.stdin if f.strip()]; print(json.dumps(files))")
             echo "matrix=$FILES" >> $GITHUB_OUTPUT
           fi
+          cat $GITHUB_OUTPUT
 
-  # Bước 2: build từng sách song song
   build-book:
     needs: list-books
     runs-on: ubuntu-latest
@@ -40,7 +41,7 @@ jobs:
     strategy:
       matrix:
         book: ${{ fromJson(needs.list-books.outputs.matrix) }}
-      fail-fast: false   # Sách này fail không ảnh hưởng sách kia
+      fail-fast: false
 
     steps:
       - uses: actions/checkout@v4
@@ -59,7 +60,7 @@ jobs:
             pyyaml \
             pillow
 
-      - name: 📚 Build book — ${{ matrix.book }}
+      - name: 📚 Build — ${{ matrix.book }}
         env:
           GEMINI_API_KEY:     ${{ secrets.GEMINI_API_KEY }}
           ANTHROPIC_API_KEY:  ${{ secrets.ANTHROPIC_API_KEY }}
@@ -77,29 +78,31 @@ jobs:
           FROM_NAME:          ${{ secrets.FROM_NAME }}
           BOOK_FILE:          ${{ matrix.book }}
         run: |
-          python scripts/build_single.py
+          # Chạy thẳng python với PYTHONPATH đúng
+          PYTHONPATH=scripts python3 scripts/build_single.py
 
       - name: 📋 List outputs
-        run: ls -la outputs/ || echo "No outputs"
+        if: always()
+        run: |
+          echo "=== outputs/ ==="
+          ls -lh outputs/ 2>/dev/null || echo "Empty"
 
       - name: 📤 Upload artifact
         uses: actions/upload-artifact@v4
+        if: always()
         with:
-          name: book-${{ strategy.job-index }}-${{ github.run_number }}
+          name: book-${{ strategy.job-index }}-run${{ github.run_number }}
           path: outputs/
           retention-days: 30
-        continue-on-error: true
+          if-no-files-found: warn
 
-      - name: 🏷️ Release
+      - name: 🏷️ Create Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: build-${{ github.run_number }}-${{ strategy.job-index }}
-          name: "📚 ${{ matrix.book }} — Build #${{ github.run_number }}"
-          body: "Auto-generated book. Download files below ↓"
-          files: |
-            outputs/*.docx
-            outputs/*.jpg
-            outputs/*.txt
+          tag_name: build-${{ github.run_number }}-book${{ strategy.job-index }}
+          name: "📚 Build #${{ github.run_number }} — Book ${{ strategy.job-index }}"
+          body: "Auto-generated from ${{ matrix.book }}"
+          files: outputs/*
           fail_on_unmatched_files: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
