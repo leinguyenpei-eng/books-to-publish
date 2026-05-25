@@ -16,7 +16,7 @@ import os, re, time, json, yaml, glob
 import requests
 from pathlib import Path
 from datetime import datetime
-from youtube_transcript_api import YouTubeTranscriptApi
+# Transcript fetching handled by transcript_fetcher.py
 from docx import Document
 from docx.shared import Pt, Inches
 from docx.enum.text import WD_ALIGN_PARAGRAPH
@@ -112,31 +112,10 @@ def call_ai(prompt: str, prefer: str = "claude") -> str:
 
 
 # ── YouTube transcripts ───────────────────────────────────────────────────────
-def extract_video_id(url: str) -> str:
-    for pat in [r"v=([a-zA-Z0-9_-]{11})",
-                r"youtu\.be/([a-zA-Z0-9_-]{11})",
-                r"shorts/([a-zA-Z0-9_-]{11})"]:
-        m = re.search(pat, url)
-        if m:
-            return m.group(1)
-    raise ValueError(f"Bad URL: {url}")
-
-
 def fetch_transcript(url: str) -> str:
-    vid_id = extract_video_id(url)
-    try:
-        tlist = YouTubeTranscriptApi.list_transcripts(vid_id)
-        langs = ['en','vi','zh','ja','ko','es','fr','de','pt','ru','th','id']
-        try:
-            t = tlist.find_manually_created_transcript(langs)
-        except Exception:
-            t = tlist.find_generated_transcript(langs)
-        text = " ".join(e["text"] for e in t.fetch())
-        log(f"    ✓ {len(text.split())} words (lang={t.language_code})")
-        return text
-    except Exception as e:
-        log(f"    ⚠ Failed: {e}")
-        return ""
+    """Dùng transcript_fetcher.py — hỗ trợ yt-dlp, transcript-api, YouTube API"""
+    from transcript_fetcher import fetch_transcript as _fetch
+    return _fetch(url)
 
 
 def gather_sources(urls: list) -> str:
