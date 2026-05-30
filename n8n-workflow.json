@@ -1,0 +1,206 @@
+{
+  "name": "📚 Book Cover + Publish Pipeline",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "book-ready",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "1-webhook",
+      "name": "1. Webhook: Book Ready",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "notes": "GitHub Actions gọi webhook này khi sách viết xong. URL sẽ là: https://your-n8n.railway.app/webhook/book-ready"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.canva.com/rest/v1/autofills",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "oAuth2Api",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [{ "name": "Content-Type", "value": "application/json" }]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"brand_template_id\": \"{{ $env.CANVA_TEMPLATE_ID }}\",\n  \"title\": \"{{ $json.body.book_title }} - Cover\",\n  \"data\": {\n    \"book_title\": { \"type\": \"text\", \"text\": \"{{ $json.body.book_title }}\" },\n    \"book_subtitle\": { \"type\": \"text\", \"text\": \"{{ $json.body.book_subtitle }}\" },\n    \"author_name\": { \"type\": \"text\", \"text\": \"{{ $json.body.author_name }}\" },\n    \"book_category\": { \"type\": \"text\", \"text\": \"{{ $json.body.book_category }}\" },\n    \"short_description\": { \"type\": \"text\", \"text\": \"{{ $json.body.short_description }}\" }\n  }\n}",
+        "options": {}
+      },
+      "id": "2-canva-autofill",
+      "name": "2. Canva: Fill Template",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [480, 300],
+      "credentials": {
+        "oAuth2Api": { "id": "CANVA_OAUTH2", "name": "Canva OAuth2" }
+      }
+    },
+    {
+      "parameters": { "amount": 8, "unit": "seconds" },
+      "id": "3-wait",
+      "name": "3. Wait 8s",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [720, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://api.canva.com/rest/v1/autofills/{{ $('2. Canva: Fill Template').item.json.job.id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "oAuth2Api",
+        "options": {}
+      },
+      "id": "4-check-status",
+      "name": "4. Check Autofill Status",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [960, 300],
+      "credentials": {
+        "oAuth2Api": { "id": "CANVA_OAUTH2", "name": "Canva OAuth2" }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.canva.com/rest/v1/exports",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "oAuth2Api",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"design_id\": \"{{ $('4. Check Autofill Status').item.json.job.result.design.id }}\",\n  \"format\": { \"type\": \"png\", \"export_quality\": \"pro\", \"width\": 1600, \"height\": 2560 }\n}",
+        "options": {}
+      },
+      "id": "5-export-png",
+      "name": "5. Export PNG Cover",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1200, 300],
+      "credentials": {
+        "oAuth2Api": { "id": "CANVA_OAUTH2", "name": "Canva OAuth2" }
+      }
+    },
+    {
+      "parameters": { "amount": 10, "unit": "seconds" },
+      "id": "6-wait-export",
+      "name": "6. Wait Export",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [1440, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://api.canva.com/rest/v1/exports/{{ $('5. Export PNG Cover').item.json.job.id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "oAuth2Api",
+        "options": {}
+      },
+      "id": "7-get-png-url",
+      "name": "7. Get PNG URL",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1680, 300],
+      "credentials": {
+        "oAuth2Api": { "id": "CANVA_OAUTH2", "name": "Canva OAuth2" }
+      }
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('7. Get PNG URL').item.json.job.result.urls[0] }}",
+        "options": {
+          "response": {
+            "response": { "responseFormat": "file", "outputPropertyName": "cover_png" }
+          }
+        }
+      },
+      "id": "8-download-png",
+      "name": "8. Download PNG",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1920, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.gumroad.com/v2/products",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            { "name": "access_token", "value": "={{ $env.GUMROAD_API_KEY }}" },
+            { "name": "name", "value": "={{ $('1. Webhook: Book Ready').item.json.body.book_title }}" },
+            { "name": "price", "value": "={{ Math.round($('1. Webhook: Book Ready').item.json.body.price_usd * 100) }}" },
+            { "name": "description", "value": "={{ $('1. Webhook: Book Ready').item.json.body.short_description }}" },
+            { "name": "published", "value": "true" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "9-gumroad-create",
+      "name": "9. Gumroad: Create Product",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2160, 200]
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": { "__rl": true, "value": "={{ $env.GOOGLE_SHEET_ID }}", "mode": "id" },
+        "sheetName": { "__rl": true, "value": "Books", "mode": "name" },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "book_title": "={{ $('1. Webhook: Book Ready').item.json.body.book_title }}",
+            "author": "={{ $('1. Webhook: Book Ready').item.json.body.author_name }}",
+            "category": "={{ $('1. Webhook: Book Ready').item.json.body.book_category }}",
+            "price_usd": "={{ $('1. Webhook: Book Ready').item.json.body.price_usd }}",
+            "gumroad_id": "={{ $('9. Gumroad: Create Product').item.json.product.id }}",
+            "gumroad_url": "={{ $('9. Gumroad: Create Product').item.json.product.short_url }}",
+            "cover_design_id": "={{ $('4. Check Autofill Status').item.json.job.result.design.id }}",
+            "status": "published",
+            "created_at": "={{ new Date().toISOString() }}"
+          }
+        },
+        "matchingColumns": ["book_title"]
+      },
+      "id": "10-log-sheets",
+      "name": "10. Log to Google Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.4,
+      "position": [2160, 420],
+      "credentials": {
+        "googleSheetsOAuth2Api": { "id": "GOOGLE_SHEETS", "name": "Google Sheets" }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: true, cover_url: $('7. Get PNG URL').item.json.job.result.urls[0], gumroad_url: $('9. Gumroad: Create Product').item.json.product.short_url }) }}"
+      },
+      "id": "11-respond",
+      "name": "11. Respond to GitHub",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2400, 300]
+    }
+  ],
+  "connections": {
+    "1. Webhook: Book Ready": { "main": [[{ "node": "2. Canva: Fill Template", "type": "main", "index": 0 }]] },
+    "2. Canva: Fill Template": { "main": [[{ "node": "3. Wait 8s", "type": "main", "index": 0 }]] },
+    "3. Wait 8s": { "main": [[{ "node": "4. Check Autofill Status", "type": "main", "index": 0 }]] },
+    "4. Check Autofill Status": { "main": [[{ "node": "5. Export PNG Cover", "type": "main", "index": 0 }]] },
+    "5. Export PNG Cover": { "main": [[{ "node": "6. Wait Export", "type": "main", "index": 0 }]] },
+    "6. Wait Export": { "main": [[{ "node": "7. Get PNG URL", "type": "main", "index": 0 }]] },
+    "7. Get PNG URL": { "main": [[{ "node": "8. Download PNG", "type": "main", "index": 0 }]] },
+    "8. Download PNG": { "main": [[{ "node": "9. Gumroad: Create Product", "type": "main", "index": 0 }, { "node": "10. Log to Google Sheets", "type": "main", "index": 0 }]] },
+    "9. Gumroad: Create Product": { "main": [[{ "node": "11. Respond to GitHub", "type": "main", "index": 0 }]] },
+    "10. Log to Google Sheets": { "main": [[{ "node": "11. Respond to GitHub", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" }
+}
