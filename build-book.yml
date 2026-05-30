@@ -1,0 +1,124 @@
+name: 📚 Auto Book Builder
+
+on:
+  push:
+    paths:
+      - 'books/**.yml'   # Trigger khi có file .yml mới (từ Telegram bot)
+  schedule:
+    - cron: '0 2 * * 1' # Mỗi thứ Hai 2AM UTC
+  workflow_dispatch:
+    inputs:
+      book_file:
+        description: 'Tên file sách (vd: 01-self-help-mindset) — để trống = chạy tất cả'
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+
+jobs:
+  list-books:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: set-matrix
+        run: |
+          if [ -n "${{ github.event.inputs.book_file }}" ]; then
+            echo "matrix=[\"books/${{ github.event.inputs.book_file }}.yml\"]" >> $GITHUB_OUTPUT
+          elif [ "${{ github.event_name }}" = "push" ]; then
+            # Chỉ build file .yml vừa được push lên
+            CHANGED=$(git diff --name-only HEAD~1 HEAD 2>/dev/null | grep '^books/.*\.yml$' || echo "")
+            if [ -z "$CHANGED" ]; then
+              CHANGED=$(git show --name-only HEAD | grep '^books/.*\.yml$' || echo "")
+            fi
+            if [ -n "$CHANGED" ]; then
+              FILES=$(echo "$CHANGED" | python3 -c "import sys,json; files=[f.strip() for f in sys.stdin if f.strip()]; print(json.dumps(files))")
+              echo "matrix=$FILES" >> $GITHUB_OUTPUT
+            else
+              echo "matrix=[]" >> $GITHUB_OUTPUT
+            fi
+          else
+            FILES=$(ls books/*.yml 2>/dev/null | grep -v example | python3 -c "import sys,json; files=[f.strip() for f in sys.stdin if f.strip()]; print(json.dumps(files))")
+            echo "matrix=$FILES" >> $GITHUB_OUTPUT
+          fi
+
+  build-book:
+    needs: list-books
+    if: needs.list-books.outputs.matrix != '[]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      matrix:
+        book: ${{ fromJson(needs.list-books.outputs.matrix) }}
+      fail-fast: false
+      max-parallel: 1   # Tuần tự — tránh Gemini rate limit 429
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'   # Cache pip để tiết kiệm 2-3 phút mỗi build
+
+      - name: 📦 Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: 🔍 Pre-flight check
+        run: |
+          echo "=== Book file ==="
+          cat "${{ matrix.book }}"
+          echo ""
+          echo "=== Secrets check ==="
+          [ -n "${{ secrets.GEMINI_API_KEY }}" ]     && echo "✓ GEMINI_API_KEY" || echo "❌ GEMINI_API_KEY missing"
+          [ -n "${{ secrets.ANTHROPIC_API_KEY }}" ]  && echo "✓ ANTHROPIC_API_KEY" || echo "❌ ANTHROPIC_API_KEY missing"
+
+      - name: 📚 Build book
+        env:
+          GEMINI_API_KEY:     ${{ secrets.GEMINI_API_KEY }}
+          ANTHROPIC_API_KEY:  ${{ secrets.ANTHROPIC_API_KEY }}
+          GUMROAD_API_KEY:    ${{ secrets.GUMROAD_API_KEY }}
+          PAYHIP_API_KEY:     ${{ secrets.PAYHIP_API_KEY }}
+          BEACONS_API_KEY:    ${{ secrets.BEACONS_API_KEY }}
+          FOURTHWALL_API_KEY: ${{ secrets.FOURTHWALL_API_KEY }}
+          FB_PAGE_TOKEN:      ${{ secrets.FB_PAGE_TOKEN }}
+          FB_PAGE_ID:         ${{ secrets.FB_PAGE_ID }}
+          MAILCHIMP_API_KEY:  ${{ secrets.MAILCHIMP_API_KEY }}
+          MAILCHIMP_SERVER:   ${{ secrets.MAILCHIMP_SERVER }}
+          MAILCHIMP_LIST_ID:  ${{ secrets.MAILCHIMP_LIST_ID }}
+          SENDGRID_API_KEY:   ${{ secrets.SENDGRID_API_KEY }}
+          FROM_EMAIL:         ${{ secrets.FROM_EMAIL }}
+          FROM_NAME:          ${{ secrets.FROM_NAME }}
+          BOOK_FILE:          ${{ matrix.book }}
+        run: PYTHONPATH=scripts python3 -u scripts/build_single.py
+
+      - name: 📋 List outputs
+        if: always()
+        run: ls -lh outputs/ 2>/dev/null || echo "No outputs"
+
+      - name: 📤 Upload artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: book-${{ strategy.job-index }}-run${{ github.run_number }}
+          path: outputs/
+          retention-days: 30
+          if-no-files-found: warn
+
+      - name: 🏷️ Create Release
+        uses: softprops/action-gh-release@v2
+        if: success()
+        with:
+          tag_name: build-${{ github.run_number }}-${{ strategy.job-index }}
+          name: "📚 Build #${{ github.run_number }}"
+          body: |
+            Auto-generated from `${{ matrix.book }}`
+            
+            **Download files below ↓**
+          files: outputs/*
+          fail_on_unmatched_files: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
