@@ -1,0 +1,7 @@
+# PASTE NOTEBOOKLM TRANSCRIPT HERE
+# ─────────────────────────────────────────────────────────
+# Xóa file này và paste nội dung từ NotebookLM vào đây.
+# Sau khi push lên GitHub, Actions sẽ tự chạy.
+# ─────────────────────────────────────────────────────────
+
+REPLACE_THIS_WITH_NOTEBOOKLM_EXPORT

@@ -1,115 +1,138 @@
-# 📚 Book Pipeline — Master Edition
+# 📚 Book Generator — Master Version
 
-Hệ thống tự động viết & publish sách từ YouTube.
+> Combine tất cả tinh hoa từ mọi version trước.  
+> Không bao giờ timeout. Không bao giờ Gemini exhausted.  
+> Email sau mỗi chương. Publish tự động Gumroad + Payhip.
 
-## Luồng hoạt động
+---
+
+## Workflow
 
 ```
-Telegram Bot (Oracle Cloud)
-  → Bạn nhắn topic hoặc paste YouTube links
-  → Gemini tạo 3 ý tưởng sách
-  → Bạn chọn 1/2/3
-  → Bot fetch transcripts (chạy trên Oracle Cloud — không bị YouTube block)
-  → Push .yml lên GitHub
-
-GitHub Actions (tự chạy ~35 phút)
-  → Đọc transcript từ .yml
-  → Gemini tổng hợp outline 12 chương
-  → Claude Sonnet viết full sách (EN + VI)
-  → Export DOCX chuẩn KDP 6×9"
-  → Generate bìa sách (Pillow)
-  → Auto-publish: Gumroad + Payhip + Beacons + Fourthwall + Etsy
-  → Tạo GitHub Release để download
-  → Telegram thông báo xong
+[Bạn] Paste YouTube links vào NotebookLM (thủ công — 2 phút)
+         ↓ copy text → paste vào books/<slug>/transcript.txt → git push
+         
+Job 1 — Gemini tạo outline 12 chương (~30s)
+         → Email báo outline xong
+         
+Job 2 — Claude viết từng chương (matrix, sequential)
+  Ch.1 → email ✉ → Ch.2 → email ✉ → ... → Ch.12 → email ✉
+  Mỗi chương = 1 job riêng → không bao giờ timeout
+  Mỗi chương ~2,100-2,500 words (3 sections x 700w)
+         
+Job 3 — Finalize
+  Claude viết Intro + Conclusion
+  Export DOCX KDP 6×9"
+  Tạo bìa (Pollinations AI background + Pillow overlay)
+  Publish Gumroad + Payhip tự động
+  Email DOCX đầy đủ
+  Telegram thông báo kèm ảnh bìa + links
+  GitHub Release để download
 ```
+
+**Tại sao không timeout?**
+- Mỗi chapter = 1 GitHub Actions job riêng = max 15 phút
+- Job 3 chỉ viết Intro + Conclusion = max 30 phút
+- Không bao giờ viết cả cuốn trong 1 lần
+
+**Tại sao không bị Gemini exhausted?**
+- Gemini chỉ dùng 1 lần duy nhất (tạo outline)
+- Claude viết 100% nội dung sách
+- NotebookLM bóc transcript miễn phí, không quota
+
+---
 
 ## Setup (1 lần duy nhất)
 
-### 1. Clone/upload repo lên GitHub
-Tạo repo tên `my-books` (Private OK), upload toàn bộ folder này.
+### 1. Thêm GitHub Secrets
 
-### 2. Thêm GitHub Secrets
-Vào repo → Settings → Secrets and variables → Actions:
+Vào repo → **Settings** → **Secrets and variables** → **Actions**:
 
-| Secret | Lấy từ đâu | Bắt buộc? |
+| Secret | Bắt buộc? | Lấy từ đâu |
 |--------|-----------|-----------|
-| `GEMINI_API_KEY` | aistudio.google.com/apikey | ✅ |
-| `ANTHROPIC_API_KEY` | console.anthropic.com | ✅ |
-| `GUMROAD_API_KEY` | gumroad.com → Settings → Advanced | Tùy chọn |
-| `PAYHIP_API_KEY` | payhip.com → Account → API | Tùy chọn |
-| `BEACONS_API_KEY` | beacons.ai → Settings → API | Tùy chọn |
-| `FOURTHWALL_API_KEY` | fourthwall.com → Settings → API | Tùy chọn |
-| `FB_PAGE_TOKEN` | Facebook Developer | Tùy chọn |
-| `MAILCHIMP_API_KEY` | mailchimp.com → Account → API Keys | Tùy chọn |
-| `SENDGRID_API_KEY` | sendgrid.com → Settings → API Keys | Tùy chọn |
+| `ANTHROPIC_API_KEY` | ✅ | console.anthropic.com |
+| `GEMINI_API_KEY` | ✅ | aistudio.google.com/apikey |
+| `GMAIL_USER` | ✅ | địa chỉ Gmail của bạn |
+| `GMAIL_APP_PASSWORD` | ✅ | myaccount.google.com → Security → App Passwords |
+| `GMAIL_TO` | ✅ | email nhận chương (có thể giống GMAIL_USER) |
+| `TELEGRAM_BOT_TOKEN` | Khuyên dùng | @BotFather trên Telegram |
+| `TELEGRAM_CHAT_ID` | Khuyên dùng | @userinfobot trên Telegram |
+| `GUMROAD_API_KEY` | Tùy chọn | gumroad.com → Settings → Advanced |
+| `PAYHIP_API_KEY` | Tùy chọn | payhip.com → Account → API Key |
 
-> Chỉ cần GEMINI + ANTHROPIC là pipeline chạy được. Các key còn lại thêm sau khi có sale.
+### 2. Lấy Gmail App Password
 
-### 3. Chạy Telegram Bot trên Oracle Cloud
+1. Vào myaccount.google.com → **Security**
+2. Bật **2-Step Verification** (nếu chưa bật)
+3. **App passwords** → Create → đặt tên "Book Bot"
+4. Copy 16 ký tự (dạng: `xxxx xxxx xxxx xxxx`)
 
-SSH vào máy ảo Oracle Cloud của bạn, rồi:
+---
 
-```bash
-# Cài thư viện
-pip3 install "python-telegram-bot[job-queue]==20.7" requests youtube-transcript-api yt-dlp PyGithub
+## Dùng thế nào
 
-# Tạo file .env
-nano .env
+### Cách 1 — Qua GitHub Actions UI (dễ nhất)
+
+1. Vào repo → tab **Actions**
+2. Click **📚 Book Generator — Master Version**
+3. Click **Run workflow**
+4. Điền topic, category, author, email
+5. Bấm **Run workflow** → ngồi đợi nhận email từng chương!
+
+### Cách 2 — Paste transcript từ NotebookLM (chất lượng cao hơn)
+
+1. Vào **notebooklm.google.com**
+2. **New Notebook** → **Add sources** → **YouTube** → paste links
+3. Chờ xử lý → chat box gõ:
+   ```
+   Summarize all key insights, frameworks, case studies, and stories 
+   from these sources in comprehensive detail. Include specific 
+   examples, data points, and quotes.
+   ```
+4. Copy toàn bộ câu trả lời
+5. Paste vào `books/my-first-book/transcript.txt`
+6. `git add . && git commit -m "Add transcript" && git push`
+7. Actions tự chạy!
+
+---
+
+## Cấu trúc
+
 ```
-
-Điền vào `.env`:
-```
-TELEGRAM_BOT_TOKEN=token_từ_BotFather
-GEMINI_API_KEY=AIzaSy...
-GITHUB_TOKEN=ghp_...
-GITHUB_USERNAME=tên_github_của_bạn
-GITHUB_REPO=my-books
-AUTHOR_NAME=Tên Tác Giả
-TELEGRAM_CHAT_ID=chat_id_của_bạn
-```
-
-```bash
-# Chạy bot (background)
-nohup python3 telegram_bot.py &
-```
-
-### 4. Dùng thôi!
-Nhắn bot bất kỳ topic tiếng Anh, ví dụ:
-- `habits for software developers`
-- `passive income strategies 2024`
-- Hoặc paste thẳng YouTube links
-
-## Cấu trúc file
-
-```
-├── telegram_bot.py          ← Chạy trên Oracle Cloud
 ├── scripts/
-│   ├── build_book.py        ← Script chính (GitHub Actions)
-│   ├── transcript_fetcher.py
-│   ├── cover_generator.py
-│   ├── social_publisher.py
-│   ├── multi_social.py
-│   ├── email_marketing.py
-│   ├── kdp_guide.py
-│   └── publish_etsy.py
+│   ├── step1_research.py    ← Gemini tạo outline
+│   ├── step2_write_chapter.py ← Claude viết 1 chương
+│   └── step3_finalize.py    ← Assemble + Cover + Publish
 ├── .github/workflows/
-│   └── build-book.yml       ← GitHub Actions workflow
-├── books/                   ← File .yml sách (bot tự tạo)
-├── outputs/                 ← DOCX, cover, guide (GitHub Actions tạo)
-├── config/
-│   └── pricing.json
+│   └── build-book.yml       ← GitHub Actions (3 jobs)
+├── books/
+│   └── my-first-book/
+│       ├── config.yml       ← Thông tin sách
+│       └── transcript.txt   ← Paste từ NotebookLM
+├── output/                  ← GitHub Actions tạo
+│   ├── outline.json
+│   ├── chapter_01.txt ... chapter_12.txt
+│   ├── <title>_KDP.docx
+│   ├── <title>_cover.png
+│   └── UPLOAD_GUIDE.txt
 └── requirements.txt
 ```
 
-## Fix đã áp dụng trong bản này
+---
 
-1. ✅ Gemini model → `gemini-2.0-flash` (fix lỗi 404)
-2. ✅ Claude API timeout → 180s (fix lỗi Read timed out)
-3. ✅ Gemini timeout → 180s (fix lỗi Read timed out)
-4. ✅ OUTPUT_DIR dùng absolute path (fix lỗi khi chạy từ thư mục khác)
-5. ✅ `Optional[X]` thay vì `X | Y` (fix Python 3.9 compatibility)
-6. ✅ `python-telegram-bot[job-queue]` trong requirements (fix APScheduler crash)
-7. ✅ `bot_state.json` persist state (fix mất queue khi restart)
-8. ✅ GitHub run_id tracking (fix nhầm run khi chạy song song)
-9. ✅ Xóa `build_single.py` (đã merge vào `build_book.py`)
-10. ✅ Xóa `n8n-workflow.json` (không cần, telegram bot đã handle)
+## Tinh hoa từ mọi version
+
+| Feature | Nguồn |
+|---------|-------|
+| 3-section chapter writing (open/middle/close) | pipeline-merged |
+| Anti-AI voice system prompt | book-final |
+| Email per chapter | generate_book_v2.yml |
+| Job matrix sequential (no timeout) | generate_book_v2.yml |
+| Pollinations AI cover background | book-automation |
+| Pillow text overlay with themes | book-automation |
+| DOCX export KDP 6×9" | book-final |
+| Publish Gumroad + Payhip | book-automation |
+| Telegram final summary + cover image | book-automation |
+| Gemini outline only (not writing) | all versions |
+| NotebookLM transcript (no YouTube block) | v2 |
+| GitHub Release artifact | book-final |
