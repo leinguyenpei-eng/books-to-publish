@@ -42,7 +42,7 @@ GITHUB_REPO        = os.environ.get("GITHUB_REPO", "my-books")
 AUTHOR_NAME        = os.environ.get("AUTHOR_NAME", "Alex Morgan")
 ALLOWED_CHAT_ID    = os.environ.get("TELEGRAM_CHAT_ID", "")
 
-GEMINI_URL  = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent"
+GEMINI_URL  = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent"
 GITHUB_API  = "https://api.github.com"
 STATE_FILE  = Path(__file__).parent / "bot_state.json"
 
@@ -84,8 +84,8 @@ def update_state(chat_id: str, data: dict):
 # ── Gemini helper ─────────────────────────────────────────────────────────────
 def call_gemini(prompt: str, retries=4) -> str:
     MODELS = [
-        "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent",
-        "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-8b:generateContent",
+        "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent",
+        "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent",
     ]
     for attempt in range(retries):
         model = MODELS[min(attempt, len(MODELS)-1)]

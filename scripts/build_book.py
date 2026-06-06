@@ -30,7 +30,7 @@ PAYHIP_KEY     = os.environ.get("PAYHIP_API_KEY", "")
 BEACONS_KEY    = os.environ.get("BEACONS_API_KEY", "")
 FOURTHWALL_KEY = os.environ.get("FOURTHWALL_API_KEY", "")
 
-GEMINI_URL   = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent"
+GEMINI_URL   = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent"
 CLAUDE_URL   = "https://api.anthropic.com/v1/messages"
 CLAUDE_MODEL = "claude-sonnet-4-6"
 
@@ -45,8 +45,8 @@ def log(msg):
 
 # ── AI callers ────────────────────────────────────────────────────────────────
 GEMINI_MODELS = [
-    "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent",
-    "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-8b:generateContent",
+    "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent",
+    "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent",
 ]
 
 def call_gemini(prompt: str, retries=4, max_tokens=2048) -> str:
@@ -58,7 +58,7 @@ def call_gemini(prompt: str, retries=4, max_tokens=2048) -> str:
                 f"{model}?key={GEMINI_KEY}",
                 json={"contents": [{"parts": [{"text": prompt}]}],
                       "generationConfig": {"temperature": 0.7, "maxOutputTokens": max_tokens}},
-                timeout=90)
+                timeout=180)
             if r.status_code == 429:
                 wait = [60, 90, 120, 180][min(attempt, 3)]
                 log(f"  ⚠ Gemini 429 rate limit (attempt {attempt+1}) — waiting {wait}s...")
@@ -94,7 +94,7 @@ def call_claude(prompt: str, system: str = "", retries=3, max_tokens=2048) -> st
                     "content-type": "application/json",
                 },
                 json=body,
-                timeout=90)
+                timeout=180)
             r.raise_for_status()
             return r.json()["content"][0]["text"].strip()
         except Exception as e:
