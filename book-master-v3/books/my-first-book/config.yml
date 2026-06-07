@@ -1,0 +1,24 @@
+# books/my-first-book/config.yml
+# Mỗi cuốn sách = 1 thư mục riêng
+
+title: "Habits for Software Developers"
+slug: "my-first-book"
+niche: "productivity / self-help"
+audience: "software developers and tech professionals"
+author: "Your Name Here"
+price_usd: 9.99
+
+# ─────────────────────────────────────────────────────────
+# BƯỚC THỦ CÔNG DUY NHẤT (2-5 phút):
+#
+# 1. Vào notebooklm.google.com
+# 2. New Notebook → Add sources → YouTube (paste links)
+# 3. Chờ xử lý → chat box gõ:
+#    "Summarize all key insights, frameworks, case studies,
+#     and stories from these sources in comprehensive detail.
+#     Include specific examples, data points, and quotes."
+# 4. Copy toàn bộ câu trả lời
+# 5. Paste vào file transcript.txt cùng thư mục này
+# 6. git add → git commit → git push
+# 7. GitHub Actions tự chạy!
+# ─────────────────────────────────────────────────────────
