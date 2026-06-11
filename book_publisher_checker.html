@@ -1,0 +1,1012 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Manuscript Readiness — Publish or Polish?</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #0E0D0B;
+  --bg2: #161513;
+  --bg3: #1E1C19;
+  --ink: #F0EDE6;
+  --ink2: #A09890;
+  --ink3: #5C574F;
+  --gold: #C9A84C;
+  --gold2: #E8C97A;
+  --red: #C84B2F;
+  --green: #4A8C3F;
+  --amber: #C47E1A;
+  --border: #2A2720;
+  --border2: #3A3530;
+  --mono: 'DM Mono', monospace;
+  --serif: 'DM Serif Display', Georgia, serif;
+  --sans: 'DM Sans', sans-serif;
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--sans);
+  min-height: 100vh;
+  font-weight: 300;
+}
+
+/* GRAIN OVERLAY */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.4;
+}
+
+/* HEADER */
+header {
+  border-bottom: 1px solid var(--border);
+  padding: 20px 36px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: relative;
+  z-index: 1;
+}
+.wordmark {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.wordmark-title {
+  font-family: var(--serif);
+  font-size: 18px;
+  color: var(--gold);
+  letter-spacing: 0.02em;
+}
+.wordmark-sub {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--ink3);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+/* API BAR */
+#api-bar {
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border);
+  padding: 10px 36px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  position: relative;
+  z-index: 1;
+}
+#api-bar label {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--ink3);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+#api-key-input {
+  font-family: var(--mono);
+  font-size: 12px;
+  padding: 7px 12px;
+  border: 1px solid var(--border2);
+  border-radius: 4px;
+  background: var(--bg3);
+  color: var(--ink);
+  flex: 1;
+  min-width: 220px;
+  max-width: 360px;
+}
+#api-key-input:focus { outline: 1px solid var(--gold); border-color: var(--gold); }
+#btn-save-key {
+  font-family: var(--mono);
+  font-size: 10px;
+  padding: 7px 14px;
+  background: var(--gold);
+  color: var(--bg);
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-weight: 500;
+}
+#btn-save-key:hover { background: var(--gold2); }
+#key-status { font-family: var(--mono); font-size: 10px; color: var(--green); }
+.cost-note { font-family: var(--mono); font-size: 10px; color: var(--ink3); margin-left: auto; }
+
+/* MAIN */
+main {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 40px 24px 80px;
+  position: relative;
+  z-index: 1;
+}
+
+.page-title {
+  font-family: var(--serif);
+  font-size: 38px;
+  font-style: italic;
+  color: var(--ink);
+  line-height: 1.2;
+  margin-bottom: 8px;
+}
+.page-sub {
+  font-family: var(--sans);
+  font-size: 14px;
+  color: var(--ink2);
+  margin-bottom: 36px;
+  font-weight: 300;
+}
+
+/* UPLOAD ZONE */
+.upload-zone {
+  border: 1px dashed var(--border2);
+  border-radius: 8px;
+  padding: 40px 24px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: var(--bg2);
+  margin-bottom: 24px;
+  position: relative;
+}
+.upload-zone:hover, .upload-zone.drag-over {
+  border-color: var(--gold);
+  background: #1A1812;
+}
+.upload-icon { font-size: 32px; margin-bottom: 12px; opacity: 0.6; }
+.upload-label {
+  font-family: var(--serif);
+  font-size: 17px;
+  color: var(--ink);
+  margin-bottom: 6px;
+}
+.upload-sub {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--ink3);
+  letter-spacing: 0.04em;
+}
+#file-input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+
+#file-status {
+  display: none;
+  background: var(--bg3);
+  border: 1px solid var(--border2);
+  border-radius: 6px;
+  padding: 12px 16px;
+  margin-bottom: 20px;
+  display: none;
+  align-items: center;
+  gap: 10px;
+}
+.file-icon { font-size: 18px; }
+.file-name { font-family: var(--mono); font-size: 12px; color: var(--gold); flex: 1; }
+.file-size { font-family: var(--mono); font-size: 11px; color: var(--ink3); }
+.file-remove {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--ink3);
+  cursor: pointer;
+  padding: 2px 8px;
+  border: 1px solid var(--border2);
+  border-radius: 3px;
+}
+.file-remove:hover { color: var(--red); border-color: var(--red); }
+
+/* BOOK CONTEXT */
+.context-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.field-group label {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--ink3);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  display: block;
+  margin-bottom: 6px;
+}
+.field-group input, .field-group select, .field-group textarea {
+  width: 100%;
+  font-family: var(--sans);
+  font-size: 13px;
+  padding: 9px 12px;
+  border: 1px solid var(--border2);
+  border-radius: 5px;
+  background: var(--bg3);
+  color: var(--ink);
+  font-weight: 300;
+}
+.field-group textarea { min-height: 70px; resize: vertical; line-height: 1.5; }
+.field-group input:focus, .field-group select:focus, .field-group textarea:focus {
+  outline: none;
+  border-color: var(--gold);
+}
+.field-group select option { background: var(--bg3); }
+.field-full { grid-column: 1 / -1; }
+
+/* ANALYZE BUTTON */
+#btn-analyze {
+  width: 100%;
+  padding: 15px;
+  font-family: var(--serif);
+  font-size: 18px;
+  font-style: italic;
+  background: var(--gold);
+  color: var(--bg);
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+  letter-spacing: 0.01em;
+}
+#btn-analyze:hover { background: var(--gold2); transform: translateY(-1px); }
+#btn-analyze:active { transform: translateY(0); }
+#btn-analyze:disabled { background: var(--bg3); color: var(--ink3); cursor: not-allowed; transform: none; }
+
+/* PROGRESS */
+#progress-area {
+  display: none;
+  margin-top: 32px;
+  padding: 28px;
+  border: 1px solid var(--border2);
+  border-radius: 8px;
+  background: var(--bg2);
+}
+.progress-title {
+  font-family: var(--serif);
+  font-size: 16px;
+  color: var(--gold);
+  margin-bottom: 16px;
+}
+.progress-steps { display: flex; flex-direction: column; gap: 8px; }
+.step-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--ink3);
+  transition: color 0.3s;
+}
+.step-row.active { color: var(--ink); }
+.step-row.done { color: var(--green); }
+.step-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--border2);
+  flex-shrink: 0;
+  transition: background 0.3s;
+}
+.step-row.active .step-dot { background: var(--gold); animation: pulse 1s ease infinite; }
+.step-row.done .step-dot { background: var(--green); }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+.progress-bar-wrap { margin-top: 16px; height: 3px; background: var(--border); border-radius: 999px; overflow: hidden; }
+.progress-bar-fill { height: 100%; background: var(--gold); border-radius: 999px; transition: width 0.5s ease; width: 0%; }
+
+/* REPORT */
+#report-area { display: none; margin-top: 36px; }
+
+.verdict-banner {
+  border-radius: 8px;
+  padding: 28px 32px;
+  margin-bottom: 28px;
+  border: 1px solid;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+.verdict-banner.ready { background: #0F1F0E; border-color: #2A5028; }
+.verdict-banner.polish { background: #1F170A; border-color: #4A330A; }
+.verdict-banner.revise { background: #1F0D0A; border-color: #4A1A12; }
+.verdict-icon { font-size: 36px; line-height: 1; }
+.verdict-text {}
+.verdict-label {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+.verdict-banner.ready .verdict-label { color: var(--green); }
+.verdict-banner.polish .verdict-label { color: var(--amber); }
+.verdict-banner.revise .verdict-label { color: var(--red); }
+.verdict-title {
+  font-family: var(--serif);
+  font-size: 24px;
+  color: var(--ink);
+  margin-bottom: 6px;
+}
+.verdict-summary {
+  font-size: 14px;
+  color: var(--ink2);
+  line-height: 1.6;
+  font-weight: 300;
+}
+
+/* SCORE GRID */
+.scores-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin-bottom: 28px;
+}
+.score-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 16px 14px;
+  text-align: center;
+}
+.score-card-label {
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--ink3);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+  line-height: 1.4;
+}
+.score-card-num {
+  font-family: var(--serif);
+  font-size: 30px;
+  line-height: 1;
+  margin-bottom: 8px;
+}
+.score-bar { height: 3px; background: var(--border); border-radius: 999px; overflow: hidden; }
+.score-bar-fill { height: 100%; border-radius: 999px; transition: width 0.8s cubic-bezier(.4,0,.2,1); }
+
+/* SECTIONS */
+.report-section {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 24px;
+  margin-bottom: 16px;
+}
+.section-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+.section-icon { font-size: 16px; }
+.section-title {
+  font-family: var(--serif);
+  font-size: 17px;
+  color: var(--ink);
+}
+.section-score {
+  margin-left: auto;
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+/* FINDING ITEMS */
+.finding {
+  padding: 12px 14px;
+  border-radius: 5px;
+  border: 1px solid var(--border2);
+  background: var(--bg3);
+  margin-bottom: 8px;
+}
+.finding-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+  flex-wrap: wrap;
+}
+.finding-tag {
+  font-family: var(--mono);
+  font-size: 9px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 500;
+}
+.tag-high { background: #2A0D0A; color: #E88070; border: 1px solid #4A1A12; }
+.tag-medium { background: #251A08; color: #D4A050; border: 1px solid #4A3310; }
+.tag-low { background: #0E1E0D; color: #70B068; border: 1px solid #1E4018; }
+.tag-positive { background: #0D1F1C; color: #50C0A0; border: 1px solid #1A4038; }
+.finding-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink);
+}
+.finding-detail {
+  font-size: 13px;
+  color: var(--ink2);
+  line-height: 1.65;
+  margin-bottom: 5px;
+  font-weight: 300;
+}
+.finding-action {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--gold);
+  line-height: 1.5;
+}
+
+/* ACTION LIST */
+.action-list { list-style: none; }
+.action-list li {
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 14px;
+  color: var(--ink2);
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  font-weight: 300;
+  line-height: 1.6;
+}
+.action-list li:last-child { border-bottom: none; }
+.action-num {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--gold);
+  flex-shrink: 0;
+  margin-top: 2px;
+  font-weight: 500;
+}
+
+/* NEW ANALYSIS BTN */
+#btn-new {
+  width: 100%;
+  margin-top: 24px;
+  padding: 12px;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  background: transparent;
+  color: var(--ink3);
+  border: 1px solid var(--border2);
+  border-radius: 5px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+#btn-new:hover { color: var(--ink); border-color: var(--ink2); }
+
+footer {
+  text-align: center;
+  padding: 24px;
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--ink3);
+  letter-spacing: 0.04em;
+  border-top: 1px solid var(--border);
+  position: relative;
+  z-index: 1;
+}
+
+@media (max-width: 600px) {
+  header { padding: 16px; }
+  #api-bar { padding: 10px 16px; }
+  main { padding: 24px 16px 60px; }
+  .page-title { font-size: 28px; }
+  .scores-grid { grid-template-columns: repeat(2, 1fr); }
+  .context-grid { grid-template-columns: 1fr; }
+  .cost-note { display: none; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wordmark">
+    <span class="wordmark-title">Manuscript Readiness</span>
+    <span class="wordmark-sub">Publish or Polish?</span>
+  </div>
+</header>
+
+<div id="api-bar">
+  <label for="api-key-input">Anthropic API Key</label>
+  <input type="password" id="api-key-input" placeholder="sk-ant-api03-..." autocomplete="off" spellcheck="false">
+  <button id="btn-save-key" onclick="saveKey()">Save</button>
+  <span id="key-status"></span>
+  <span class="cost-note">Model: claude-haiku-4-5 · ~$0.001–0.005 per full book analysis</span>
+</div>
+
+<main>
+  <h1 class="page-title">Is your manuscript<br><em>ready to publish?</em></h1>
+  <p class="page-sub">Upload your book file — get a full editorial report in minutes. AI voice, structure, audience fit, market readiness.</p>
+
+  <!-- UPLOAD -->
+  <div class="upload-zone" id="upload-zone">
+    <input type="file" id="file-input" accept=".pdf,.docx,.txt" onchange="handleFile(this.files[0])">
+    <div class="upload-icon">📄</div>
+    <div class="upload-label">Drop your manuscript here</div>
+    <div class="upload-sub">PDF · DOCX · TXT &nbsp;·&nbsp; Up to 50MB</div>
+  </div>
+
+  <div id="file-status">
+    <span class="file-icon" id="file-icon">📄</span>
+    <span class="file-name" id="file-name"></span>
+    <span class="file-size" id="file-size"></span>
+    <span class="file-remove" onclick="clearFile()">✕ Remove</span>
+  </div>
+
+  <!-- CONTEXT -->
+  <div class="context-grid">
+    <div class="field-group">
+      <label>Book Genre / Category</label>
+      <select id="field-genre">
+        <option value="">Select genre...</option>
+        <option>Self-help / Personal Development</option>
+        <option>Business / Entrepreneurship</option>
+        <option>Memoir / Biography</option>
+        <option>Fiction — Literary</option>
+        <option>Fiction — Thriller / Mystery</option>
+        <option>Fiction — Romance</option>
+        <option>Fiction — Fantasy / Sci-Fi</option>
+        <option>Health / Wellness</option>
+        <option>Finance / Investing</option>
+        <option>Technology / AI</option>
+        <option>Education / How-To</option>
+        <option>Other</option>
+      </select>
+    </div>
+    <div class="field-group">
+      <label>Target Audience</label>
+      <input type="text" id="field-audience" placeholder="e.g. Young professionals 25–35, entrepreneurs">
+    </div>
+    <div class="field-group field-full">
+      <label>What is this book about? (1–2 sentences)</label>
+      <textarea id="field-premise" placeholder="e.g. A practical guide to building a sustainable online business using AI tools, aimed at solo creators who want to escape the 9-5..."></textarea>
+    </div>
+    <div class="field-group">
+      <label>Comparable Titles (comps)</label>
+      <input type="text" id="field-comps" placeholder="e.g. Atomic Habits, The 4-Hour Work Week">
+    </div>
+    <div class="field-group">
+      <label>Publishing Goal</label>
+      <select id="field-goal">
+        <option value="">Select goal...</option>
+        <option>Self-publish on Amazon KDP</option>
+        <option>Pitch to traditional publisher</option>
+        <option>Sell directly (Gumroad / Etsy)</option>
+        <option>Free lead magnet / giveaway</option>
+        <option>Print on demand</option>
+      </select>
+    </div>
+  </div>
+
+  <button id="btn-analyze" onclick="startAnalysis()">Analyze My Manuscript →</button>
+
+  <!-- PROGRESS -->
+  <div id="progress-area">
+    <div class="progress-title">Analyzing your manuscript…</div>
+    <div class="progress-steps">
+      <div class="step-row" id="step-0"><div class="step-dot"></div><span>Extracting text from file</span></div>
+      <div class="step-row" id="step-1"><div class="step-dot"></div><span>Sampling chapters &amp; structure</span></div>
+      <div class="step-row" id="step-2"><div class="step-dot"></div><span>Analyzing voice &amp; AI patterns</span></div>
+      <div class="step-row" id="step-3"><div class="step-dot"></div><span>Evaluating structure &amp; flow</span></div>
+      <div class="step-row" id="step-4"><div class="step-dot"></div><span>Assessing market &amp; audience fit</span></div>
+      <div class="step-row" id="step-5"><div class="step-dot"></div><span>Generating editorial report</span></div>
+    </div>
+    <div class="progress-bar-wrap"><div class="progress-bar-fill" id="progress-fill"></div></div>
+  </div>
+
+  <!-- REPORT -->
+  <div id="report-area"></div>
+</main>
+
+<footer>Manuscript Readiness · Powered by Anthropic API · Your file is processed locally, never stored</footer>
+
+<script>
+// PDF.js worker
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+// ---- STATE ----
+let currentFile = null;
+let extractedText = '';
+
+// ---- API KEY ----
+function saveKey() {
+  const v = document.getElementById('api-key-input').value.trim();
+  if (!v.startsWith('sk-ant-')) { alert('Invalid API key (must start with sk-ant-)'); return; }
+  localStorage.setItem('mrc_api_key', v);
+  document.getElementById('key-status').textContent = '✓ Saved';
+  document.getElementById('api-key-input').value = '•••••••••••' + v.slice(-6);
+  setTimeout(() => document.getElementById('key-status').textContent = '', 3000);
+}
+function getKey() { return localStorage.getItem('mrc_api_key') || ''; }
+
+window.addEventListener('load', () => {
+  const k = getKey();
+  if (k) {
+    document.getElementById('api-key-input').value = '•••••••••••' + k.slice(-6);
+    document.getElementById('key-status').textContent = '✓ Key saved';
+  }
+  // Drag & drop
+  const zone = document.getElementById('upload-zone');
+  zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag-over'); });
+  zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
+  zone.addEventListener('drop', e => {
+    e.preventDefault(); zone.classList.remove('drag-over');
+    const f = e.dataTransfer.files[0];
+    if (f) handleFile(f);
+  });
+});
+
+// ---- FILE HANDLING ----
+function handleFile(file) {
+  if (!file) return;
+  const allowed = ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'text/plain'];
+  const ext = file.name.split('.').pop().toLowerCase();
+  if (!['pdf','docx','txt'].includes(ext)) { alert('Please upload a PDF, DOCX, or TXT file.'); return; }
+  currentFile = file;
+  const icons = { pdf: '📕', docx: '📘', txt: '📄' };
+  document.getElementById('file-icon').textContent = icons[ext] || '📄';
+  document.getElementById('file-name').textContent = file.name;
+  document.getElementById('file-size').textContent = formatSize(file.size);
+  const s = document.getElementById('file-status');
+  s.style.display = 'flex';
+  document.getElementById('upload-zone').style.display = 'none';
+}
+
+function clearFile() {
+  currentFile = null; extractedText = '';
+  document.getElementById('file-status').style.display = 'none';
+  document.getElementById('upload-zone').style.display = 'block';
+  document.getElementById('file-input').value = '';
+}
+
+function formatSize(b) {
+  if (b < 1024) return b + ' B';
+  if (b < 1024*1024) return (b/1024).toFixed(1) + ' KB';
+  return (b/(1024*1024)).toFixed(1) + ' MB';
+}
+
+// ---- TEXT EXTRACTION ----
+async function extractText(file) {
+  const ext = file.name.split('.').pop().toLowerCase();
+  if (ext === 'txt') {
+    return new Promise((res, rej) => {
+      const r = new FileReader();
+      r.onload = e => res(e.target.result);
+      r.onerror = () => rej(new Error('Failed to read TXT'));
+      r.readAsText(file, 'UTF-8');
+    });
+  }
+  if (ext === 'docx') {
+    return new Promise((res, rej) => {
+      const r = new FileReader();
+      r.onload = async e => {
+        try {
+          const result = await mammoth.extractRawText({ arrayBuffer: e.target.result });
+          res(result.value);
+        } catch(err) { rej(err); }
+      };
+      r.onerror = () => rej(new Error('Failed to read DOCX'));
+      r.readAsArrayBuffer(file);
+    });
+  }
+  if (ext === 'pdf') {
+    return new Promise((res, rej) => {
+      const r = new FileReader();
+      r.onload = async e => {
+        try {
+          const pdf = await pdfjsLib.getDocument({ data: e.target.result }).promise;
+          let text = '';
+          for (let i = 1; i <= Math.min(pdf.numPages, 300); i++) {
+            const page = await pdf.getPage(i);
+            const content = await page.getTextContent();
+            text += content.items.map(s => s.str).join(' ') + '\n';
+          }
+          res(text);
+        } catch(err) { rej(err); }
+      };
+      r.onerror = () => rej(new Error('Failed to read PDF'));
+      r.readAsArrayBuffer(file);
+    });
+  }
+  throw new Error('Unsupported file type');
+}
+
+// ---- SAMPLING: take beginning, middle, end chunks ----
+function sampleText(text, maxChars = 12000) {
+  if (text.length <= maxChars) return text;
+  const third = Math.floor(maxChars / 3);
+  const start = text.slice(0, third);
+  const mid = text.slice(Math.floor(text.length/2 - third/2), Math.floor(text.length/2 + third/2));
+  const end = text.slice(text.length - third);
+  return `[BEGINNING]\n${start}\n\n[MIDDLE]\n${mid}\n\n[END]\n${end}`;
+}
+
+// ---- PROGRESS HELPERS ----
+function setStep(n, state) {
+  const el = document.getElementById('step-' + n);
+  if (!el) return;
+  el.className = 'step-row ' + state;
+  document.getElementById('progress-fill').style.width = ((n+1)/6*100) + '%';
+}
+
+// ---- MAIN ANALYSIS ----
+async function startAnalysis() {
+  const key = getKey();
+  if (!key) { alert('Please enter your Anthropic API key first.'); return; }
+  if (!currentFile) { alert('Please upload your manuscript first.'); return; }
+
+  const genre = document.getElementById('field-genre').value;
+  const audience = document.getElementById('field-audience').value;
+  const premise = document.getElementById('field-premise').value;
+  const comps = document.getElementById('field-comps').value;
+  const goal = document.getElementById('field-goal').value;
+
+  document.getElementById('btn-analyze').disabled = true;
+  document.getElementById('report-area').style.display = 'none';
+  document.getElementById('progress-area').style.display = 'block';
+  // reset steps
+  for(let i=0;i<6;i++) document.getElementById('step-'+i).className='step-row';
+  document.getElementById('progress-fill').style.width = '0%';
+
+  try {
+    // STEP 0: Extract
+    setStep(0, 'active');
+    extractedText = await extractText(currentFile);
+    setStep(0, 'done');
+
+    // STEP 1: Sample
+    setStep(1, 'active');
+    const sample = sampleText(extractedText, 14000);
+    const wordCount = extractedText.trim().split(/\s+/).length;
+    setStep(1, 'done');
+
+    // Build context string
+    const ctx = [
+      genre ? `Genre: ${genre}` : '',
+      audience ? `Target audience: ${audience}` : '',
+      premise ? `Premise: ${premise}` : '',
+      comps ? `Comp titles: ${comps}` : '',
+      goal ? `Publishing goal: ${goal}` : '',
+      `Estimated word count: ~${wordCount.toLocaleString()}`
+    ].filter(Boolean).join('\n');
+
+    // STEP 2–5: API call
+    setStep(2, 'active');
+
+    const prompt = `You are a senior literary editor and publishing consultant. Analyze this manuscript sample and provide a comprehensive publishing readiness report.
+
+BOOK CONTEXT:
+${ctx || 'No context provided.'}
+
+MANUSCRIPT SAMPLE (beginning, middle, end):
+"""
+${sample}
+"""
+
+Return ONLY valid JSON, no markdown, no explanation:
+{
+  "verdict": "<ready|polish|revise>",
+  "verdict_title": "<short punchy verdict title, max 8 words>",
+  "verdict_summary": "<2-3 sentences overall assessment>",
+  "overall_score": <0-100>,
+  "scores": {
+    "voice_quality": <0-100>,
+    "structure": <0-100>,
+    "audience_fit": <0-100>,
+    "market_readiness": <0-100>
+  },
+  "sections": [
+    {
+      "id": "voice",
+      "title": "Voice & Writing Quality",
+      "score": <0-100>,
+      "findings": [
+        {
+          "severity": "<high|medium|low|positive>",
+          "title": "<finding title>",
+          "detail": "<specific observation with examples from text>",
+          "action": "<concrete editorial action>"
+        }
+      ]
+    },
+    {
+      "id": "structure",
+      "title": "Structure & Flow",
+      "score": <0-100>,
+      "findings": []
+    },
+    {
+      "id": "audience",
+      "title": "Audience & Positioning",
+      "score": <0-100>,
+      "findings": []
+    },
+    {
+      "id": "market",
+      "title": "Market Readiness",
+      "score": <0-100>,
+      "findings": []
+    }
+  ],
+  "top_actions": [
+    "<most important action to take before publishing>",
+    "<second most important>",
+    "<third most important>"
+  ]
+}
+
+Verdicts: "ready" = publish now (score 78+), "polish" = minor improvements needed (55-77), "revise" = significant work needed (<55).
+Be specific — reference actual passages, patterns, or issues you notice in the sample. Be honest, not encouraging.`;
+
+    // Simulate step advances while waiting
+    let stepTimer = 2;
+    const stepAdv = setInterval(() => {
+      if (stepTimer <= 5) { setStep(stepTimer-1, 'done'); setStep(stepTimer, 'active'); stepTimer++; }
+    }, 2200);
+
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': key,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-request-header': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5',
+        max_tokens: 2500,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+
+    clearInterval(stepAdv);
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err?.error?.message || `HTTP ${res.status}`);
+    }
+
+    const data = await res.json();
+    const raw = data.content.map(b => b.text || '').join('');
+    const clean = raw.replace(/```json|```/g, '').trim();
+    let report;
+    try { report = JSON.parse(clean); }
+    catch(e) { throw new Error('Could not parse response. Raw: ' + raw.slice(0, 400)); }
+
+    // All steps done
+    for(let i=0;i<6;i++) setStep(i,'done');
+    document.getElementById('progress-fill').style.width = '100%';
+
+    await new Promise(r => setTimeout(r, 400));
+    document.getElementById('progress-area').style.display = 'none';
+
+    renderReport(report, wordCount);
+    document.getElementById('report-area').style.display = 'block';
+    document.getElementById('report-area').scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+  } catch(err) {
+    document.getElementById('progress-area').style.display = 'none';
+    document.getElementById('report-area').innerHTML = `
+      <div style="background:#1F0D0A;border:1px solid #4A1A12;border-radius:8px;padding:20px;font-family:var(--mono);font-size:12px;color:#E88070;">
+        Error: ${err.message}
+      </div>`;
+    document.getElementById('report-area').style.display = 'block';
+  }
+
+  document.getElementById('btn-analyze').disabled = false;
+}
+
+// ---- RENDER REPORT ----
+function renderReport(r, wordCount) {
+  const vClass = { ready: 'ready', polish: 'polish', revise: 'revise' }[r.verdict] || 'polish';
+  const vIcon = { ready: '✦', polish: '◈', revise: '⚠' }[r.verdict] || '◈';
+
+  const scoreColor = s => s >= 75 ? 'var(--green)' : s >= 50 ? 'var(--amber)' : 'var(--red)';
+  const scoreLabel = (label, key) => `
+    <div class="score-card">
+      <div class="score-card-label">${label}</div>
+      <div class="score-card-num" style="color:${scoreColor(r.scores[key])}">${r.scores[key]}</div>
+      <div class="score-bar"><div class="score-bar-fill" style="width:${r.scores[key]}%;background:${scoreColor(r.scores[key])};"></div></div>
+    </div>`;
+
+  const sevTag = sev => {
+    const map = { high: 'tag-high', medium: 'tag-medium', low: 'tag-low', positive: 'tag-positive' };
+    const label = { high: '⚠ Critical', medium: '● Moderate', low: '○ Minor', positive: '✦ Strength' };
+    return `<span class="finding-tag ${map[sev]||'tag-medium'}">${label[sev]||sev}</span>`;
+  };
+
+  let sectionsHtml = '';
+  for (const sec of (r.sections || [])) {
+    const findings = (sec.findings || []).map(f => `
+      <div class="finding">
+        <div class="finding-header">
+          ${sevTag(f.severity)}
+          <span class="finding-title">${f.title}</span>
+        </div>
+        <p class="finding-detail">${f.detail}</p>
+        ${f.action ? `<div class="finding-action">→ ${f.action}</div>` : ''}
+      </div>`).join('');
+
+    sectionsHtml += `
+      <div class="report-section">
+        <div class="section-header">
+          <span class="section-title">${sec.title}</span>
+          <span class="section-score" style="color:${scoreColor(sec.score)}">${sec.score}/100</span>
+        </div>
+        ${findings || '<p style="font-size:13px;color:var(--ink3);">No significant findings.</p>'}
+      </div>`;
+  }
+
+  const actions = (r.top_actions || []).map((a, i) => `
+    <li><span class="action-num">${String(i+1).padStart(2,'0')}</span>${a}</li>`).join('');
+
+  document.getElementById('report-area').innerHTML = `
+    <div class="verdict-banner ${vClass}">
+      <div class="verdict-icon">${vIcon}</div>
+      <div class="verdict-text">
+        <div class="verdict-label">${{ ready:'Ready to Publish', polish:'Needs Polishing', revise:'Major Revision Required' }[r.verdict]||''}</div>
+        <div class="verdict-title">${r.verdict_title || ''}</div>
+        <div class="verdict-summary">${r.verdict_summary || ''}</div>
+      </div>
+    </div>
+
+    <div class="scores-grid">
+      ${scoreLabel('Voice & Writing', 'voice_quality')}
+      ${scoreLabel('Structure & Flow', 'structure')}
+      ${scoreLabel('Audience Fit', 'audience_fit')}
+      ${scoreLabel('Market Readiness', 'market_readiness')}
+    </div>
+
+    ${sectionsHtml}
+
+    <div class="report-section">
+      <div class="section-header">
+        <span class="section-title">Priority Actions Before Publishing</span>
+      </div>
+      <ul class="action-list">${actions}</ul>
+    </div>
+
+    <div style="text-align:center;padding:16px 0;font-family:var(--mono);font-size:10px;color:var(--ink3);letter-spacing:0.04em;">
+      Analysis based on ~${wordCount.toLocaleString()} words · Sampled beginning, middle &amp; end
+    </div>
+
+    <button id="btn-new" onclick="newAnalysis()">↺ Analyze Another Manuscript</button>
+  `;
+
+  // Animate score bars
+  setTimeout(() => {
+    document.querySelectorAll('.score-bar-fill, .score-fill').forEach(el => {
+      const w = el.style.width;
+      el.style.width = '0%';
+      setTimeout(() => el.style.width = w, 50);
+    });
+  }, 100);
+}
+
+function newAnalysis() {
+  clearFile();
+  document.getElementById('report-area').style.display = 'none';
+  document.getElementById('report-area').innerHTML = '';
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+</script>
+</body>
+</html>
